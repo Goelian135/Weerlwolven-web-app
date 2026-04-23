@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <title>Weerwolven Tool</title>
+  <style>
+    body {
+      font-family: Arial;
+      padding: 20px;
+      background: #111;
+      color: white;
+    }
+
+    .role {
+      display: flex;
+      justify-content: space-between;
+      margin: 10px 0;
+      padding: 10px;
+      background: #222;
+      border-radius: 8px;
+    }
+
+    button {
+      padding: 5px 10px;
+      margin: 0 5px;
+      font-size: 16px;
+    }
+
+    #startBtn {
+      margin-top: 20px;
+      padding: 10px;
+      font-size: 18px;
+      width: 100%;
+    }
+
+    #tableArea {
+      position: relative;
+      width: 100%;
+      height: 500px;
+      background: #1a1a1a;
+      border-radius: 10px;
+      margin-top: 20px;
+      overflow: hidden;
+    }
+
+    .playerCard {
+      position: absolute;
+      padding: 10px;
+      background: #333;
+      border-radius: 8px;
+      cursor: grab;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="setupScreen">
+    <h1>Weerwolven Setup</h1>
+    <div id="roles"></div>
+    <h2>Totaal spelers: <span id="total">0</span></h2>
+    <button id="startBtn">Door naar namen invoeren</button>
+  </div>
+
+  <div id="nameScreen" style="display: none;"> 
+    <h1>Voer namen in</h1>
+    <div id="nameInputs"></div>
+    <button id="continueBtn">Start spel</button>
+  </div>
+
+  <div id="roleScreen" style="display: none;">
+    <h1>Rollen toewijzen</h1>
+    <div id="playerRoles"></div>
+    <button id="beginGameBtn">Begin spel</button>
+  </div>
+
+  <div id="tableScreen" style="display:none;">
+    <h1>Plaats spelers</h1>
+    <div id="tableArea"></div>
+  </div>
+
+  <script>
+    const roles = [
+      { name: "Weerwolf", count: 0 , players: 1},
+      { name: "Oerwolf", count: 0 , players: 1},
+      { name: "Burger", count: 0 , players: 1},
+      { name: "Cupido", count: 0 , players: 1},
+      { name: "Slet", count: 0 , players: 1},
+      { name: "Heks", count: 0 , players: 1},
+      { name: "Ziener", count: 0 , players: 1},
+      { name: "Tarzan", count: 0 , players: 1},
+      { name: "Vos", count: 0 , players: 1},
+      { name: "Boom", count: 0 , players: 1},
+      { name: "Jager", count: 0 , players: 1},
+      { name: "Engel", count: 0 , players: 1},
+      { name: "Diddy", count: 0 , players: 1},
+      { name: "Titus en de dansende beer", count: 0 , players: 1},
+      { name: "Witte weerwolf", count: 0 , players: 1},
+      { name: "Grote boze weerwolf", count: 0 , players: 1},
+      { name: "Wolfshond", count: 0 , players: 1},
+      { name: "Ridder met het roestige zwaard", count: 0 , players: 1},
+      { name: "Tweelingen (2 spelers)", count: 0 , players: 2},
+    ];
+
+    let players = [];
+
+    const rolesDiv = document.getElementById("roles");
+    const totalSpan = document.getElementById("total");
+
+    function render() {
+      rolesDiv.innerHTML = "";
+
+      let total = 0;
+
+      roles.forEach((role, index) => {
+        total += role.count * role.players;
+
+        const div = document.createElement("div");
+        div.className = "role";
+
+        div.innerHTML = `
+          <span>${role.name}</span>
+          <div>
+            <button onclick="change(${index}, -1)">-</button>
+            <span>${role.count}</span>
+            <button onclick="change(${index}, 1)">+</button>
+          </div>
+        `;
+
+        rolesDiv.appendChild(div);
+      });
+
+      totalSpan.textContent = total;
+    }
+
+    function change(index, amount) {
+      roles[index].count += amount;
+
+      if (roles[index].count < 0) {
+        roles[index].count = 0;
+      }
+
+      render();
+    }
+
+    document.getElementById("startBtn").onclick = () => {
+      const total = roles.reduce((sum, r) => sum + r.count * r.players, 0);
+
+      if (total < 3) {
+        alert("Minimaal 3 spelers nodig");
+        return;
+      }
+
+      // verberg setup scherm
+      document.getElementById("setupScreen").style.display = "none";
+
+      // toon naam scherm
+      document.getElementById("nameScreen").style.display = "block";
+
+      // genereer input velden
+      const nameInputsDiv = document.getElementById("nameInputs");
+      nameInputsDiv.innerHTML = "";
+
+      for (let i = 0; i < total; i++) {
+        const input = document.createElement("input");
+        input.placeholder = "Speler " + (i + 1);
+        input.style.display = "block";
+        input.style.margin = "5px 0";
+
+        nameInputsDiv.appendChild(input);
+      }
+    };
+
+    render();
+
+    document.getElementById("continueBtn").onclick = () => {
+      const inputs = document.querySelectorAll("#nameInputs input");
+
+      players = [];
+      let valid = true;
+
+      inputs.forEach(input => {
+        if (input.value.trim() === "") {
+          valid = false;
+        }
+
+        players.push({
+          name: input.value,
+          role: null,
+          alive: true
+        });
+      });
+
+      if (!valid) {
+        alert("Vul alle namen in!");
+        return;
+      }
+
+      document.getElementById("nameScreen").style.display = "none";
+      document.getElementById("roleScreen").style.display = "block";
+
+      renderRoleAssignment();
+    };
+
+    function renderRoleAssignment() {
+      const container = document.getElementById("playerRoles");
+      container.innerHTML = "";
+
+      players.forEach((player, index) => {
+        const div = document.createElement("div");
+        div.style.margin = "10px 0";
+
+        // dropdown maken
+        let options = "";
+
+        const assigned = countAssignedRoles();
+
+        roles.forEach(role => {
+          const used = assigned[role.name] || 0;
+          const max = role.count * role.players;
+
+          if (used < max || player.role === role.name) {
+            options += `<option value="${role.name}" 
+              ${player.role === role.name ? "selected" : ""}>
+              ${role.name}
+            </option>`;
+          }
+        });
+
+        div.innerHTML = `
+          <span>${player.name}</span>
+          <select onchange="setRole(${index}, this.value)">
+            <option value="">-- kies rol --</option>
+            ${options}
+          </select>
+        `;
+
+        container.appendChild(div);
+      });
+    } 
+  
+    function setRole(index, roleName) {
+      players[index].role = roleName;
+
+      renderRoleAssignment();
+    }
+
+    function countAssignedRoles() {
+      const counts = {};
+
+      players.forEach(player => {
+        if (!player.role) return;
+
+        if (!counts[player.role]) {
+          counts[player.role] = 0;
+        }
+
+        counts[player.role]++;
+      });
+
+      return counts;
+    }
+
+    function validateRoles() {
+      const assigned = countAssignedRoles();
+
+      for (let role of roles) {
+        const used = assigned[role.name] || 0;
+        const required = role.count * role.players;
+
+        if (used !== required) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    document.getElementById("beginGameBtn").onclick = () => {
+      if (!validateRoles()) {
+        alert("Niet alle rollen zijn correct verdeeld!");
+        return;
+      }
+
+      document.getElementById("roleScreen").style.display = "none";
+      document.getElementById("tableScreen").style.display = "block";
+
+      renderTable();;
+    };
+
+    function renderTable() {
+      const table = document.getElementById("tableArea");
+      table.innerHTML = "";
+
+      players.forEach((player, index) => {
+        const div = document.createElement("div");
+        div.className = "playerCard";
+
+        // Tweelingen fix (naam mooier maken)
+        let roleName = player.role;
+        if (roleName === "Tweelingen (2 spelers)") {
+          roleName = "Tweelingen";
+        }
+
+        div.innerHTML = `
+          <strong>${player.name}</strong><br>
+          ${roleName}
+        `;
+
+        // start positie (random-ish)
+        div.style.left = (50 + index * 20) + "px";
+        div.style.top = (50 + index * 20) + "px";
+
+        makeDraggable(div);
+
+        table.appendChild(div);
+      });
+    }
+
+    function makeDraggable(element) {
+      let offsetX = 0;
+      let offsetY = 0;
+      let isDragging = false;
+
+      element.addEventListener("mousedown", (e) => {
+        isDragging = true;
+        offsetX = e.offsetX;
+        offsetY = e.offsetY;
+      });
+
+      document.addEventListener("mousemove", (e) => {
+        if (!isDragging) return;
+
+        const rect = element.parentElement.getBoundingClientRect();
+
+        let x = e.clientX - rect.left - offsetX;
+        let y = e.clientY - rect.top - offsetY;
+
+        // grenzen berekenen
+        const maxX = rect.width - element.offsetWidth;
+        const maxY = rect.height - element.offsetHeight;
+
+        // clampen
+        x = Math.max(0, Math.min(x, maxX));
+        y = Math.max(0, Math.min(y, maxY));
+
+        element.style.left = x + "px";
+        element.style.top = y + "px";
+      });
+
+      document.addEventListener("mouseup", () => {
+        isDragging = false;
+      });
+    }
+  </script>
+
+</body>
+</html>
