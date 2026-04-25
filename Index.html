@@ -110,28 +110,6 @@
 
     let currentScreen = "setupScreen";
 
-    function loadGame() {
-      const saved = localStorage.getItem("werewolvesGame");
-      if (!saved) return;
-
-      const data = JSON.parse(saved);
-
-      if (data.roles) {
-        data.roles.forEach(savedRole => {
-          const role = roles.find(r => r.name === savedRole.name);
-          if (role) {
-            role.count = savedRole.count;
-            role.players = savedRole.players;
-          }
-        });
-      }
-
-      players = data.players || [];
-    }
-
-    loadGame();
-
-
     const rolesDiv = document.getElementById("roles");
     const totalSpan = document.getElementById("total");
 
@@ -180,11 +158,7 @@
         return;
       }
 
-      // verberg setup scherm
-      document.getElementById("setupScreen").style.display = "none";
-
-      // toon naam scherm
-      document.getElementById("nameScreen").style.display = "block";
+      showScreen("nameScreen");
 
       renderNameInputs();
       saveGame();
@@ -241,8 +215,7 @@
         return;
       }
 
-      document.getElementById("nameScreen").style.display = "none";
-      document.getElementById("roleScreen").style.display = "block";
+      showScreen("roleScreen");
 
       renderRoleAssignment();
       saveGame();
@@ -329,8 +302,7 @@
         return;
       }
 
-      document.getElementById("roleScreen").style.display = "none";
-      document.getElementById("tableScreen").style.display = "block";
+      showScreen("tableScreen");
 
       renderTable();;
       saveGame();
@@ -416,7 +388,7 @@
       }
     }
 
-    function showScreen(screenId) {
+    function showScreen(screenId, shouldSave = true) {
       const screens = ["setupScreen", "nameScreen", "roleScreen", "tableScreen"];
 
       screens.forEach(id => {
@@ -426,7 +398,10 @@
       document.getElementById(screenId).style.display = "block";
 
       currentScreen = screenId;
-      saveGame();
+
+      if (shouldSave) {
+        saveGame();
+      }
 
       if (screenId === "nameScreen") renderNameInputs();
       if (screenId === "roleScreen") renderRoleAssignment();
@@ -463,37 +438,30 @@
 
     window.onload = () => {
       const saved = localStorage.getItem("werewolvesGame");
-      if (!saved) return;
 
-      const data = JSON.parse(saved);
+      if (saved) {
+        const data = JSON.parse(saved);
 
-      // herstel state
-      if (data.roles) {
-        data.roles.forEach(savedRole => {
-          const role = roles.find(r => r.name === savedRole.name);
-          if (role) {
-            role.count = savedRole.count;
-          }
-        });
+        // herstel roles
+        if (data.roles) {
+          data.roles.forEach(savedRole => {
+            const role = roles.find(r => r.name === savedRole.name);
+            if (role) {
+              role.count = savedRole.count;
+            }
+          });
+        }
+
+          // herstel players
+        players = data.players || [];
+
+          // herstel scherm
+        currentScreen = data.currentScreen || "setupScreen";
       }
-
-      players = data.players || [];
-
-      currentScreen = data.currentScreen || "setupScreen";
 
       render();
 
-      if (currentScreen === "nameScreen") {
-        showScreen("nameScreen");
-      }
-
-      if (currentScreen === "roleScreen") {
-        showScreen("roleScreen");
-      }
-
-      if (currentScreen === "tableScreen") {
-        showScreen("tableScreen");
-      }
+      showScreen(currentScreen, false);
     };
   </script>
 
