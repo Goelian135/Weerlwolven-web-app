@@ -45,11 +45,13 @@
 
     .playerCard {
       position: absolute;
-      padding: 10px;
+      padding: 15px;
+      font-size: 16px;
       background: #333;
       border-radius: 8px;
       cursor: grab;
       user-select: none;
+      touch-action: none;
     }
   </style>
 </head>
@@ -331,36 +333,31 @@
         div.style.left = (player.x ?? (50 + index * 20)) + "px";
         div.style.top = (player.y ?? (50 + index * 20)) + "px";
 
-        makeDraggable(div);
+        makeDraggable(div, index);;
 
         table.appendChild(div);
       });
     }
 
-    function makeDraggable(element) {
+    function makeDraggable(element, index) {
       let offsetX = 0;
       let offsetY = 0;
-      let isDragging = false;
 
-      element.addEventListener("mousedown", (e) => {
-        isDragging = true;
+      element.addEventListener("pointerdown", (e) => {
+        element.setPointerCapture(e.pointerId);
+
         offsetX = e.offsetX;
         offsetY = e.offsetY;
       });
 
-      document.addEventListener("mousemove", (e) => {
-        if (!isDragging) return;
+      element.addEventListener("pointermove", (e) => {
+        if (!element.hasPointerCapture(e.pointerId)) return;
 
         const rect = element.parentElement.getBoundingClientRect();
 
         let x = e.clientX - rect.left - offsetX;
         let y = e.clientY - rect.top - offsetY;
 
-        // grenzen berekenen
-        const maxX = rect.width - element.offsetWidth;
-        const maxY = rect.height - element.offsetHeight;
-
-        // clampen
         const gridSize = 10;
 
         x = Math.round(x / gridSize) * gridSize;
@@ -370,22 +367,14 @@
         element.style.top = y + "px";
       });
 
-      document.addEventListener("mouseup", () => {
-        isDragging = false;
-        savePositions();
-      });
+      element.addEventListener("pointerup", (e) => {
+        element.releasePointerCapture(e.pointerId);
 
-      function savePositions() {
-        players.forEach((p, i) => {
-          const card = document.querySelectorAll(".playerCard")[i];
-          if (!card) return;
-
-          p.x = parseInt(card.style.left);
-          p.y = parseInt(card.style.top);
-        });
+        players[index].x = parseInt(element.style.left);
+        players[index].y = parseInt(element.style.top);
 
         saveGame();
-      }
+      });
     }
 
     function showScreen(screenId, shouldSave = true) {
