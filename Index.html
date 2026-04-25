@@ -60,23 +60,27 @@
     <div id="roles"></div>
     <h2>Totaal spelers: <span id="total">0</span></h2>
     <button id="startBtn">Door naar namen invoeren</button>
+    <button onclick="clearAll()">Clear alles</button>
   </div>
 
   <div id="nameScreen" style="display: none;"> 
     <h1>Voer namen in</h1>
     <div id="nameInputs"></div>
     <button id="continueBtn">Start spel</button>
+    <button onclick="showScreen('setupScreen')">Terug</button>
   </div>
 
   <div id="roleScreen" style="display: none;">
     <h1>Rollen toewijzen</h1>
     <div id="playerRoles"></div>
     <button id="beginGameBtn">Begin spel</button>
+    <button onclick="showScreen('setupScreen')">Terug</button>
   </div>
 
   <div id="tableScreen" style="display:none;">
     <h1>Plaats spelers</h1>
     <div id="tableArea"></div>
+    <button onclick="showScreen('setupScreen')">Terug</button>
   </div>
 
   <script>
@@ -103,6 +107,30 @@
     ];
 
     let players = [];
+
+    let currentScreen = "setupScreen";
+
+    function loadGame() {
+      const saved = localStorage.getItem("werewolvesGame");
+      if (!saved) return;
+
+      const data = JSON.parse(saved);
+
+      if (data.roles) {
+        data.roles.forEach(savedRole => {
+          const role = roles.find(r => r.name === savedRole.name);
+          if (role) {
+            role.count = savedRole.count;
+            role.players = savedRole.players;
+          }
+        });
+      }
+
+      players = data.players || [];
+    }
+
+    loadGame();
+
 
     const rolesDiv = document.getElementById("roles");
     const totalSpan = document.getElementById("total");
@@ -140,6 +168,7 @@
         roles[index].count = 0;
       }
 
+      saveGame();
       render();
     }
 
@@ -157,21 +186,37 @@
       // toon naam scherm
       document.getElementById("nameScreen").style.display = "block";
 
-      // genereer input velden
+      renderNameInputs();
+      saveGame();
+    };
+
+    render();
+
+    function renderNameInputs() {
       const nameInputsDiv = document.getElementById("nameInputs");
       nameInputsDiv.innerHTML = "";
 
+      const total = roles.reduce((sum, r) => sum + r.count * r.players, 0);
+
+      // maak players als ze leeg zijn
+      if (players.length === 0) {
+        players = Array.from({ length: total }, () => ({
+          name: "",
+          role: null,
+          alive: true
+        }));
+      }
+
       for (let i = 0; i < total; i++) {
         const input = document.createElement("input");
+        input.value = players[i]?.name || "";
         input.placeholder = "Speler " + (i + 1);
         input.style.display = "block";
         input.style.margin = "5px 0";
 
         nameInputsDiv.appendChild(input);
       }
-    };
-
-    render();
+    }
 
     document.getElementById("continueBtn").onclick = () => {
       const inputs = document.querySelectorAll("#nameInputs input");
@@ -200,6 +245,7 @@
       document.getElementById("roleScreen").style.display = "block";
 
       renderRoleAssignment();
+      saveGame();
     };
 
     function renderRoleAssignment() {
@@ -242,6 +288,7 @@
     function setRole(index, roleName) {
       players[index].role = roleName;
 
+      saveGame();
       renderRoleAssignment();
     }
 
@@ -286,6 +333,7 @@
       document.getElementById("tableScreen").style.display = "block";
 
       renderTable();;
+      saveGame();
     };
 
     function renderTable() {
@@ -308,8 +356,8 @@
         `;
 
         // start positie (random-ish)
-        div.style.left = (50 + index * 20) + "px";
-        div.style.top = (50 + index * 20) + "px";
+        div.style.left = (player.x ?? (50 + index * 20)) + "px";
+        div.style.top = (player.y ?? (50 + index * 20)) + "px";
 
         makeDraggable(div);
 
@@ -341,8 +389,10 @@
         const maxY = rect.height - element.offsetHeight;
 
         // clampen
-        x = Math.max(0, Math.min(x, maxX));
-        y = Math.max(0, Math.min(y, maxY));
+        const gridSize = 10;
+
+        x = Math.round(x / gridSize) * gridSize;
+        y = Math.round(y / gridSize) * gridSize;
 
         element.style.left = x + "px";
         element.style.top = y + "px";
@@ -350,8 +400,101 @@
 
       document.addEventListener("mouseup", () => {
         isDragging = false;
+        savePositions();
       });
+
+      function savePositions() {
+        players.forEach((p, i) => {
+          const card = document.querySelectorAll(".playerCard")[i];
+          if (!card) return;
+
+          p.x = parseInt(card.style.left);
+          p.y = parseInt(card.style.top);
+        });
+
+        saveGame();
+      }
     }
+
+    function showScreen(screenId) {
+      const screens = ["setupScreen", "nameScreen", "roleScreen", "tableScreen"];
+
+      screens.forEach(id => {
+        document.getElementById(id).style.display = "none";
+      });
+
+      document.getElementById(screenId).style.display = "block";
+
+      currentScreen = screenId;
+      saveGame();
+
+      if (screenId === "nameScreen") renderNameInputs();
+      if (screenId === "roleScreen") renderRoleAssignment();
+      if (screenId === "tableScreen") renderTable();
+    }
+
+    function saveGame() {
+      localStorage.setItem("werewolvesGame", JSON.stringify({
+        roles: roles.map(r => ({
+          name: r.name,
+          count: r.count,
+          players: r.players
+        })),
+        players,
+        currentScreen
+      }));
+    }
+
+    function clearAll() {
+      if (!confirm("Weet je zeker dat je alles wilt resetten?")) return;
+
+      localStorage.removeItem("werewolvesGame");
+
+      roles.forEach(r => {
+        r.count = 0;
+      });
+
+      players = [];
+
+      render();
+      alert("Alles is gereset");
+      location.reload();
+    }
+
+    window.onload = () => {
+      const saved = localStorage.getItem("werewolvesGame");
+      if (!saved) return;
+
+      const data = JSON.parse(saved);
+
+      // herstel state
+      if (data.roles) {
+        data.roles.forEach(savedRole => {
+          const role = roles.find(r => r.name === savedRole.name);
+          if (role) {
+            role.count = savedRole.count;
+          }
+        });
+      }
+
+      players = data.players || [];
+
+      currentScreen = data.currentScreen || "setupScreen";
+
+      render();
+
+      if (currentScreen === "nameScreen") {
+        showScreen("nameScreen");
+      }
+
+      if (currentScreen === "roleScreen") {
+        showScreen("roleScreen");
+      }
+
+      if (currentScreen === "tableScreen") {
+        showScreen("tableScreen");
+      }
+    };
   </script>
 
 </body>
