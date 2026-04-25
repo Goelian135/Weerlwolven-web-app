@@ -49,19 +49,19 @@
     #tableArea {
       position: relative;
       width: 100%;
-      height: 60vh;
+      height: 70vh;
       background: #1a1a1a;
       border-radius: 10px;
-      margin-top: 20px;
+      margin-top: 10px;
       overflow: hidden;
     }
 
     .playerCard {
       position: absolute;
-      width: 110px;
-      height: 70px;
+      width: 90px;
+      height: 55px;
 
-      padding: 8px;
+      padding: 6px;
       background: #333;
       border-radius: 8px;
 
@@ -69,10 +69,23 @@
       flex-direction: column;
       justify-content: center;
 
-      font-size: 16px;
+      font-size: 11px;
+      text-align: center;
       cursor: grab;
       user-select: none;
       touch-action: none;
+    }
+
+    .playerCard strong {
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .playerCard span {
+      font-size: 10px;
+      opacity: 0.8;
     }
 
     h1 {
@@ -359,8 +372,8 @@
         `;
 
         // start positie (random-ish)
-        div.style.left = (player.x ?? (50 + index * 20)) + "px";
-        div.style.top = (player.y ?? (50 + index * 20)) + "px";
+        div.style.left = (player.x ?? (20 + (index % 4) * 100)) + "px";
+        div.style.top = (player.y ?? (20 + Math.floor(index / 4) * 70)) + "px";
 
         makeDraggable(div, index);;
 
