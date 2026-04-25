@@ -7,7 +7,7 @@
   <style>
     body {
       font-family: 'Times New Roman', Times, serif;
-      padding: 20px;
+      padding: 10px;
       background: #111;
       color: white;
     }
@@ -48,11 +48,11 @@
 
     #tableArea {
       position: relative;
-      width: 100%;
-      height: 70vh;
+      width: 95vw;
+      height: 65vh;
       background: #1a1a1a;
-      border-radius: 10px;
-      margin-top: 10px;
+      border-radius: 16px;
+      margin: 10px auto;
       overflow: hidden;
     }
 
@@ -405,6 +405,12 @@
         x = Math.round(x / gridSize) * gridSize;
         y = Math.round(y / gridSize) * gridSize;
 
+        const maxX = rect.width - element.offsetWidth;
+        const maxY = rect.height - element.offsetHeight;
+
+        x = Math.max(0, Math.min(x, maxX));
+        y = Math.max(0, Math.min(y, maxY));
+        
         element.style.left = x + "px";
         element.style.top = y + "px";
       });
