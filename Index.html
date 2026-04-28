@@ -125,6 +125,10 @@
     <h1>Plaats spelers</h1>
     <div id="tableArea"></div>
     <button onclick="showScreen('setupScreen')">Terug</button>
+    <div style="display:flex; gap:10px;">
+    <button onclick="zoomOut()">-</button>
+    <button onclick="zoomIn()">+</button>
+  </div>
   </div>
 
   <script>
@@ -153,6 +157,8 @@
     let players = [];
 
     let currentScreen = "setupScreen";
+
+    let scale = 1; // 1 = normaal, kleiner = meer ruimte
 
     const rolesDiv = document.getElementById("roles");
     const totalSpan = document.getElementById("total");
@@ -347,8 +353,6 @@
       }
 
       showScreen("tableScreen");
-
-      renderTable();;
       saveGame();
     };
 
@@ -388,8 +392,8 @@
       element.addEventListener("pointerdown", (e) => {
         element.setPointerCapture(e.pointerId);
 
-        offsetX = e.offsetX;
-        offsetY = e.offsetY;
+        offsetX = e.offsetX / scale;
+        offsetY = e.offsetY / scale;
       });
 
       element.addEventListener("pointermove", (e) => {
@@ -397,16 +401,16 @@
 
         const rect = element.parentElement.getBoundingClientRect();
 
-        let x = e.clientX - rect.left - offsetX;
-        let y = e.clientY - rect.top - offsetY;
+        let x = e.clientX - rect.left - offsetX * scale;
+        let y = e.clientY - rect.top - offsetY * scale;
 
         const gridSize = 10;
 
         x = Math.round(x / gridSize) * gridSize;
         y = Math.round(y / gridSize) * gridSize;
 
-        const maxX = rect.width - element.offsetWidth;
-        const maxY = rect.height - element.offsetHeight;
+        const maxX = rect.width - element.offsetWidth * scale;
+        const maxY = rect.height - element.offsetHeight * scale;
 
         x = Math.max(0, Math.min(x, maxX));
         y = Math.max(0, Math.min(y, maxY));
@@ -423,6 +427,27 @@
 
         saveGame();
       });
+    }
+
+    function zoomIn() {
+      scale += 0.1;
+      if (scale > 1.5) scale = 1.5; // max zoom
+      applyScale();
+    }
+
+    function zoomOut() {
+      scale -= 0.1;
+      if (scale < 0.5) scale = 0.5; // min zoom
+      applyScale();
+    }
+
+    function applyScale() {
+      document.querySelectorAll(".playerCard").forEach(card => {
+        card.style.transform = `scale(${scale})`;
+        card.style.transformOrigin = "top left";
+      });
+
+      saveGame();
     }
 
     function showScreen(screenId, shouldSave = true) {
@@ -442,7 +467,10 @@
 
       if (screenId === "nameScreen") renderNameInputs();
       if (screenId === "roleScreen") renderRoleAssignment();
-      if (screenId === "tableScreen") renderTable();
+      if (screenId === "tableScreen"){
+        renderTable();  
+        applyScale();
+      }
     }
 
     function saveGame() {
@@ -453,7 +481,8 @@
           players: r.players
         })),
         players,
-        currentScreen
+        currentScreen,
+        scale
       }));
     }
 
@@ -494,6 +523,9 @@
 
           // herstel scherm
         currentScreen = data.currentScreen || "setupScreen";
+
+        // herstel schaal
+        scale = data.scale || 1;
       }
 
       render();
