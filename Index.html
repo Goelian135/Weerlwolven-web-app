@@ -56,6 +56,22 @@
       overflow: hidden;
     }
 
+    #tableCircle {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      border: none;
+    }
+
+    #tableCircle svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
     .playerCard {
       position: absolute;
       width: 90px;
@@ -123,12 +139,20 @@
 
   <div id="tableScreen" style="display:none;">
     <h1>Plaats spelers</h1>
-    <div id="tableArea"></div>
-    <button onclick="showScreen('setupScreen')">Terug</button>
+    <div id="tableArea">
+      <div id="tableCircle" style="display:none;"></div>
+    </div>
+
+    <button onclick="handleBack()" class="uiBtn">Terug</button>
+
     <div style="display:flex; gap:10px;">
-    <button onclick="zoomOut()">-</button>
-    <button onclick="zoomIn()">+</button>
-  </div>
+      <button onclick="zoomOut()" class="uiBtn">-</button>
+      <button onclick="zoomIn()" class="uiBtn">+</button>
+    </div>
+
+    <button id="generateTableBtn" class="uiBtn">Genereer tafel</button>
+    <button id="startGameBtn" style="display:none;" class="uiBtn">Start Game</button>
+    </div>
   </div>
 
   <script>
@@ -159,6 +183,11 @@
     let currentScreen = "setupScreen";
 
     let scale = 1; // 1 = normaal, kleiner = meer ruimte
+
+    let tableGenerated = false;
+
+    const CARD_WIDTH = 90;
+    const CARD_HEIGHT = 55;
 
     const rolesDiv = document.getElementById("roles");
     const totalSpan = document.getElementById("total");
@@ -358,7 +387,7 @@
 
     function renderTable() {
       const table = document.getElementById("tableArea");
-      table.innerHTML = "";
+      table.querySelectorAll(".playerCard").forEach(el => el.remove());
 
       players.forEach((player, index) => {
         const div = document.createElement("div");
@@ -385,36 +414,39 @@
       });
     }
 
-    function makeDraggable(element, index) {
+   function makeDraggable(element, index) {
       let offsetX = 0;
       let offsetY = 0;
 
       element.addEventListener("pointerdown", (e) => {
         element.setPointerCapture(e.pointerId);
 
-        offsetX = e.offsetX / scale;
-        offsetY = e.offsetY / scale;
+        const rect = element.getBoundingClientRect();
+
+        // correcte offset (rekening houdend met scale)
+        offsetX = (e.clientX - rect.left);
+        offsetY = (e.clientY - rect.top);
       });
 
       element.addEventListener("pointermove", (e) => {
         if (!element.hasPointerCapture(e.pointerId)) return;
 
-        const rect = element.parentElement.getBoundingClientRect();
+        const parentRect = element.parentElement.getBoundingClientRect();
 
-        let x = e.clientX - rect.left - offsetX * scale;
-        let y = e.clientY - rect.top - offsetY * scale;
+        let x = e.clientX - parentRect.left - offsetX;
+        let y = e.clientY - parentRect.top - offsetY;
 
         const gridSize = 10;
 
         x = Math.round(x / gridSize) * gridSize;
         y = Math.round(y / gridSize) * gridSize;
 
-        const maxX = rect.width - element.offsetWidth * scale;
-        const maxY = rect.height - element.offsetHeight * scale;
+        const maxX = parentRect.width - element.offsetWidth;
+        const maxY = parentRect.height - element.offsetHeight;
 
         x = Math.max(0, Math.min(x, maxX));
         y = Math.max(0, Math.min(y, maxY));
-        
+
         element.style.left = x + "px";
         element.style.top = y + "px";
       });
@@ -448,6 +480,146 @@
       });
 
       saveGame();
+    }
+
+    document.getElementById("generateTableBtn").onclick = () => {
+      renderTableShape();
+
+      document.getElementById("tableCircle").style.display = "block";
+      document.getElementById("startGameBtn").style.display = "block";
+
+      tableGenerated = true;
+    };
+
+    function renderTableShape() {
+      const circle = document.getElementById("tableCircle");
+      if (!circle) return;
+
+      const validPlayers = players.filter(p =>
+        typeof p.x === "number" && typeof p.y === "number"
+      );
+
+      if (validPlayers.length < 3) return;
+
+      // center berekenen
+      let centerX = 0;
+      let centerY = 0;
+
+      validPlayers.forEach(p => {
+        centerX += p.x + CARD_WIDTH / 2;
+        centerY += p.y + CARD_HEIGHT / 2;
+      });
+
+      centerX /= validPlayers.length;
+      centerY /= validPlayers.length;
+
+      // sorteer rond midden
+      validPlayers.forEach(p => {
+        const px = p.x + CARD_WIDTH / 2;
+        const py = p.y + CARD_HEIGHT / 2;
+
+        p.angle = Math.atan2(py - centerY, px - centerX);
+      });
+
+      validPlayers.sort((a, b) => a.angle - b.angle);
+
+      const shrink = 0.6;
+
+      const points = validPlayers.map(p => {
+        const px = p.x + CARD_WIDTH / 2;
+        const py = p.y + CARD_HEIGHT / 2;
+
+        return {
+          x: centerX + (px - centerX) * shrink,
+          y: centerY + (py - centerY) * shrink
+        };
+      });
+
+      // SMOOTH PATH MAKEN (quadratic curves)
+      let path = "";
+
+      for (let i = 0; i < points.length; i++) {
+        const current = points[i];
+        const next = points[(i + 1) % points.length];
+
+        const midX = (current.x + next.x) / 2;
+        const midY = (current.y + next.y) / 2;
+
+        if (i === 0) {
+          path += `M ${midX} ${midY}`;
+        }
+
+        path += ` Q ${current.x} ${current.y} ${midX} ${midY}`;
+      }
+
+      path += " Z";
+
+      // SVG injecten
+      const rect = document.getElementById("tableArea").getBoundingClientRect();
+
+      circle.innerHTML = `
+        <svg width="100%" height="100%" viewBox="0 0 ${rect.width} ${rect.height}" preserveAspectRatio="none">
+          <path d="${path}" fill="rgba(101,42,14,0.35)" />
+        </svg>
+      `;
+
+      circle.style.display = "block";
+    }
+
+    document.getElementById("startGameBtn").onclick = () => {
+      calculatePlayerOrder();
+
+      // UI locken
+      document.getElementById("generateTableBtn").style.display = "none";
+      document.getElementById("startGameBtn").style.display = "none";
+
+      // zoom + terug weg
+      document.querySelectorAll(".uiBtn").forEach(btn => {
+        if (btn.textContent === "Terug" || btn.textContent === "+" || btn.textContent === "-") {
+          btn.style.display = "none";
+        }
+      });
+
+      alert("Spel gestart!");
+    };
+
+    function calculatePlayerOrder() {
+      let centerX = 0;
+      let centerY = 0;
+
+      players.forEach(p => {
+        centerX += p.x;
+        centerY += p.y;
+      });
+
+      centerX /= players.length;
+      centerY /= players.length;
+
+      players.forEach(p => {
+        const dx = p.x - centerX;
+        const dy = p.y - centerY;
+
+        p.angle = Math.atan2(dy, dx); // -PI tot PI
+      });
+
+      // sorteer met de klok mee
+      players.sort((a, b) => a.angle - b.angle);
+
+      saveGame();
+    }
+
+    function handleBack() {
+      if (tableGenerated) {
+        // alleen tafel weghalen
+        document.getElementById("tableCircle").style.display = "none";
+        document.getElementById("startGameBtn").style.display = "none";
+
+        tableGenerated = false;
+
+      } else {
+        // normale terug
+        showScreen("setupScreen");
+      }
     }
 
     function showScreen(screenId, shouldSave = true) {
